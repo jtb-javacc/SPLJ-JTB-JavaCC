@@ -1,0 +1,425 @@
+/* Copyright (c) 2006, Sun Microsystems, Inc.
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ *     * Redistributions of source code must retain the above copyright notice,
+ *       this list of conditions and the following disclaimer.
+ *     * Redistributions in binary form must reproduce the above copyright
+ *       notice, this list of conditions and the following disclaimer in the
+ *       documentation and/or other materials provided with the distribution.
+ *     * Neither the name of the Sun Microsystems, Inc. nor the names of its
+ *       contributors may be used to endorse or promote products derived from
+ *       this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+ * THE POSSIBILITY OF SUCH DAMAGE.
+ */
+/*
+CL_Option	JTB_Option	Description
+-cl 		JTB_CL=(true|false)	Print a list of the classes generated to standard out
+-d dir 		JTB_D="dir" 	Short for (and overwrites) "-nd dir/syntaxtree -vd dir/visitor"
+-dl 		JTB_DL=(true|false)	Generate depth level info
+-e 			JTB_E=(true|false) 	Suppress JTB semantic error checking
+-f 			JTB_F=(true|false) 	Use descriptive node class field names
+-h 			N/A 	Display this help message and quit
+-ia 		JTB_IA=(true|false)	Inline visitors accept methods on base classes
+-jd 		JTB_JD=(true|false)	Generate JavaDoc-friendly comments in the nodes and visitor
+-nd dir 	JTB_ND="dir" 	Use dir as the package for the syntax tree nodes
+-np pkg 	JTB_NP="pkg" 	Use pkg as the package for the syntax tree nodes
+-ns class	JTB_NS="class" 	Use class as the class which all node classes will extend
+-o file 	JTB_o="file" 	Use file as the filename for the annotated output grammar
+-p pkg 		JTB_P="pkg" 	Short for (and overwrites) "-np pkg.syntaxtree -vp pkg.visitor"
+-pp 		JTB_PP=(true|false)	Generate parent pointers in all node classes
+-printer 	JTB_PRINTER 	Generate a syntax tree dumping visitor
+-si 		N/A 	Read from standard input rather than a file
+-scheme 	JTB_SCHEME 	Generate Scheme records representing the grammar and a Scheme tree building visitor
+-tk 		JTB_TK=(true|false)	Generate special tokens into the tree
+-vd dir 	JTB_VD="dir" 	Use dir as the package for the default visitor classes
+-vp pkg 	JTB_VP="pkg" 	Use pkg as the package for the default visitor classes
+-w 			JTB_W=(true|false )	Do not overwrite existing files
+ */
+
+options {
+  	static = false;
+  	OUTPUT_LANGUAGE="java";
+  	OUTPUT_DIRECTORY="../src";
+  	JTB_D="../ast";
+  	JTB_NS="Foo";
+  	JTB_PP=true;
+  	JTB_VA=true;
+  	JTB_PRINTER=true;
+}
+
+
+PARSER_BEGIN(Parser)
+import visitor.TreeDumper;
+
+/** Simple Programming Language parser. */public class Parser {  int foo;
+  String bar;
+
+  int init()  {	return 2;
+  }  /**   * Returns the root node of the AST.     * It only makes sense to call this after a successful parse.    * @return the root node   */
+	public static void main(String[] args) {	    Parser parser;
+	    if (args.length == 1) {
+	      System.out.println("Simple Programming Language Interpreter Version 0.1:  Reading from file " + args[0] + " . . .");
+	      try {
+	        parser = new Parser(new java.io.FileInputStream(args[0]));
+	      } catch (java.io.FileNotFoundException e) {
+	        System.out.println("Simple Programming Language Interpreter Version 0.1:  File " + args[0] + " not found.");
+	        return;
+	      }
+	    } else {
+	      System.out.println("Simple Programming Language Interpreter Version 0.1:  Usage :");
+	      System.out.println("         java SPL inputfile");
+	      return;
+	    }
+	    try {
+	      CompilationUnit compilationUnit;
+	      compilationUnit = parser.CompilationUnit();
+	      Interpret interpret = new Interpret();
+	      interpret.visit(compilationUnit);
+//        TreeFormatter treeFormatter = new TreeFormatter();//        treeFormatter.visit(compilationUnit);
+	      TreeDumper treeDumper = new TreeDumper();
+	      treeDumper.visit(compilationUnit);
+	    } catch (ParseException e) {
+	      System.out.println("Simple Programming Language Interpreter Version 0.1:  Encountered errors during parse.");
+	      e.printStackTrace();
+	    } catch (Exception e1) {
+	      System.out.println("Simple Programming Language Interpreter Version 0.1:  Encountered errors during interpretation/tree building.");
+	      e1.printStackTrace();
+	    }
+	  } }
+
+PARSER_END(Parser)
+
+
+SKIP : /* WHITE SPACE */
+{
+  " "
+| "\t"
+| "\n"
+| "\r"
+| "\f"
+}
+
+TOKEN : /* Types */
+{
+   < INT: "int" >
+ |
+   < BOOL: "boolean" >
+}
+
+TOKEN : /* LITERALS */
+{
+  < INTEGER_LITERAL: (<DIGIT>)+ >
+}
+
+/*
+ * Program structuring syntax follows.
+ */
+
+/** Compilation unit. */
+void CompilationUnit() :
+{
+   String name;
+}
+{
+   (
+       VarDeclaration() ";"
+     |
+       Statement()
+   )*
+   <EOF>
+}
+
+/** Variable declaration. */
+void VarDeclaration() :
+{ Token t; }
+{
+  (
+    "boolean" 
+   |
+    "int" 
+  )
+  t = <IDENTIFIER> 
+
+}
+
+/*
+ * Expression syntax follows.
+ */
+
+/** Expression. */
+void Expression():
+{}
+{
+  LOOKAHEAD( PrimaryExpression() "=" )
+  Assignment()
+|
+  ConditionalOrExpression()
+}
+
+/** Assignment. */
+void Assignment() :
+{}
+{
+  PrimaryExpression() "=" Expression()
+}
+
+/** Conditional or expression. */
+void ConditionalOrExpression():
+{}
+{
+  ConditionalAndExpression()
+  ( "||" ConditionalAndExpression()  )*
+}
+
+/** Conditional and expression. */
+void ConditionalAndExpression():
+{}
+{
+  InclusiveOrExpression()
+  ( "&&" InclusiveOrExpression()  )*
+}
+
+/** Inclusive or expression. */
+void InclusiveOrExpression():
+{}
+{
+  ExclusiveOrExpression()
+  ( "|" ExclusiveOrExpression() )*
+}
+
+/** Exclusive or expression. */
+void ExclusiveOrExpression()  :
+{}
+{
+  AndExpression()
+  ( "^" AndExpression()  )*
+}
+
+/** And expression. */
+void AndExpression() :
+{}
+{
+  EqualityExpression()
+  ( "&" EqualityExpression()  )*
+}
+
+/** Equality expression. */
+void EqualityExpression():
+{}
+{
+  RelationalExpression()
+  (
+     "==" RelationalExpression()
+   |
+     "!=" RelationalExpression()
+  )*
+}
+
+/** Relational expression. */
+void RelationalExpression():
+{}
+{
+  AdditiveExpression()
+  (
+    "<" AdditiveExpression() 
+   |
+    ">" AdditiveExpression()
+   |
+    "<=" AdditiveExpression() 
+   |
+    ">=" AdditiveExpression() 
+  )*
+}
+
+/** Additive expression. */
+void AdditiveExpression() :
+{}
+{
+  MultiplicativeExpression()
+  (
+    "+" MultiplicativeExpression()
+   |
+    "-" MultiplicativeExpression() 
+  )*
+}
+
+/** Multiplicative expression. */
+void MultiplicativeExpression():
+{}
+{
+  UnaryExpression()
+  (
+    "*" UnaryExpression() 
+   |
+    "/" UnaryExpression() 
+   |
+    "%" UnaryExpression() 
+  )*
+}
+
+/** Unary expression. */
+void UnaryExpression() :
+{}
+{
+  "~" UnaryExpression() 
+|
+  "!" UnaryExpression() 
+|
+  PrimaryExpression()
+}
+
+/** Primary expression. */
+void PrimaryExpression():
+{
+   String name;
+}
+{
+  Literal()
+|
+  Id() 
+|
+  "(" Expression() ")"
+}
+
+/** An Id. */
+void Id() :
+{
+   Token t;
+}
+{
+   t = <IDENTIFIER> 
+}
+
+/** A literal. */
+void Literal():
+{
+   Token t;
+}
+{
+  t=<INTEGER_LITERAL>
+|
+  BooleanLiteral()
+}
+
+/** A boolean literal. */
+void BooleanLiteral()  :
+{}
+{
+  "true" 
+|
+  "false" 
+}
+
+/*
+ * Statement syntax follows.
+ */
+
+/** A statement. */
+void Statement()  :
+{}
+{
+  ";"
+|
+  LOOKAHEAD(2)
+  LabeledStatement()
+|
+  Block()
+|
+  StatementExpression()
+|
+  IfStatement()
+|
+  WhileStatement()
+|
+  IOStatement()
+}
+
+/** A labeled statement. */
+void LabeledStatement() :
+{}
+{
+  <IDENTIFIER> ":" Statement()
+}
+
+/** A block. */
+void Block() :
+{}
+{
+  "{" ( Statement() )* "}"
+}
+
+/** A statement expression. */
+void StatementExpression() :
+/*
+ * The last expansion of this production accepts more than the legal
+ * SPL expansions for StatementExpression.
+ */
+{}
+{
+  Assignment() ";"
+}
+
+/** An if statement. */
+void IfStatement() :
+/*
+ * The disambiguating algorithm of JavaCC automatically binds dangling
+ * else's to the innermost if statement.  The LOOKAHEAD specification
+ * is to tell JavaCC that we know what we are doing.
+ */
+{}
+{
+  "if" "(" Expression() ")" Statement() [ LOOKAHEAD(1) "else" Statement() ]
+}
+
+/** A while statement. */
+void WhileStatement() :
+{}
+{
+  "while" "(" Expression() ")" Statement()
+}
+
+/** An IO statement. */
+void IOStatement():
+{ String name; }
+{
+   ReadStatement()
+ |
+   WriteStatement()
+}
+
+/** A read statement. */
+void ReadStatement() :
+{ Token t; }
+{
+   "read" t = <IDENTIFIER>
+}
+
+/** A write statement. */
+void WriteStatement() :
+{ Token t; }
+{
+   "write" t = <IDENTIFIER>
+}
+
+TOKEN : /* IDENTIFIERS */
+{
+  < IDENTIFIER: <LETTER> (<LETTER>|<DIGIT>)* >
+|
+  < #LETTER: [ "a"-"z", "A"-"Z" ] >
+|
+  < #DIGIT: [ "0"-"9"] >
+}
