@@ -53,53 +53,26 @@ CL_Option	JTB_Option	Description
 options {
   	static = false;
   	OUTPUT_LANGUAGE="java";
-  	OUTPUT_DIRECTORY="../src";
-  	JTB_D="../ast";
-  	JTB_NS="Foo";
+  	OUTPUT_DIRECTORY="../src/spl";
+  	JTB_D="../src/spl";
+//  	JTB_NS="Foo";
   	JTB_PP=true;
   	JTB_VA=true;
+  	JTB_P="spl";
   	JTB_PRINTER=true;
 }
 
 
 PARSER_BEGIN(Parser)
-import visitor.TreeDumper;
+package spl;
+
+import spl.visitor.TreeDumper;
 
 /** Simple Programming Language parser. */public class Parser {  int foo;
   String bar;
 
   int init()  {	return 2;
-  }  /**   * Returns the root node of the AST.     * It only makes sense to call this after a successful parse.    * @return the root node   */
-	public static void main(String[] args) {	    Parser parser;
-	    if (args.length == 1) {
-	      System.out.println("Simple Programming Language Interpreter Version 0.1:  Reading from file " + args[0] + " . . .");
-	      try {
-	        parser = new Parser(new java.io.FileInputStream(args[0]));
-	      } catch (java.io.FileNotFoundException e) {
-	        System.out.println("Simple Programming Language Interpreter Version 0.1:  File " + args[0] + " not found.");
-	        return;
-	      }
-	    } else {
-	      System.out.println("Simple Programming Language Interpreter Version 0.1:  Usage :");
-	      System.out.println("         java SPL inputfile");
-	      return;
-	    }
-	    try {
-	      CompilationUnit compilationUnit;
-	      compilationUnit = parser.CompilationUnit();
-	      Interpret interpret = new Interpret();
-	      interpret.visit(compilationUnit);
-//        TreeFormatter treeFormatter = new TreeFormatter();//        treeFormatter.visit(compilationUnit);
-	      TreeDumper treeDumper = new TreeDumper();
-	      treeDumper.visit(compilationUnit);
-	    } catch (ParseException e) {
-	      System.out.println("Simple Programming Language Interpreter Version 0.1:  Encountered errors during parse.");
-	      e.printStackTrace();
-	    } catch (Exception e1) {
-	      System.out.println("Simple Programming Language Interpreter Version 0.1:  Encountered errors during interpretation/tree building.");
-	      e1.printStackTrace();
-	    }
-	  } }
+  }}
 
 PARSER_END(Parser)
 
